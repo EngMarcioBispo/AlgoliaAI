@@ -45,7 +45,7 @@ def check_plagiarism(processed_text):
     return len(search_results['hits']) > 0
 
 # Função para armazenar a redação processada no Algolia
-def store_processed_text(inscricao, original_text, processed_text, tema):
+def store_processed_text(inscricao, original_text, tema):
     record = {
         'inscricao': inscricao,
         'redacao': original_text,
@@ -82,6 +82,7 @@ def process_essay(inscricao, tema, essay):
         max_tokens=3000
     )
     corrected_essay = response.choices[0].message.content    
+    store_processed_text(inscricao, essay, tema)
     
     return corrected_essay
 
