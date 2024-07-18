@@ -2,3 +2,4 @@ flask
 openai
 algoliasearch
 python-dotenv
+gunicorn

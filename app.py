@@ -4,7 +4,7 @@ from openai import OpenAI
 from algoliasearch.search_client import SearchClient
 from dotenv import load_dotenv, find_dotenv
 import os
-import json
+import re
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv(find_dotenv())
@@ -13,6 +13,20 @@ load_dotenv(find_dotenv())
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )
+
+# Função para extrair a pontuação usando regex
+def extrair_pontuacao(data):
+    match = re.search(r"#pontuacao=\*\*(\d+(\.\d+)?)\*\*", data)
+    if match:
+        return match.group(1)
+    return None
+
+# Função para extrair o comentário usando regex
+def extrair_comentario(data):
+    match = re.search(r"#comentario=\*\*(.+?)\*\*", data)
+    if match:
+        return match.group(1)
+    return None
 
 # Configurar o cliente Algolia
 algolia_client = SearchClient.create(os.getenv('ALGOLIA_ID'), os.getenv('ALGOLIA_API'))
@@ -58,38 +72,20 @@ def process_essay(inscricao, tema, essay):
     plagio = f"Plágio detectado nos parágrafos: {', '.join(map(str, plagiarism_paragraphs))}" if plagiarism_detected else ""
 
     response = client.chat.completions.create(
-        model="gpt-4o", 
+        model="gpt-4", 
         messages=[
-        {
-            "role": "system", 
-            "content": "Você é um Professor avaliador de redação universitária. Você receberá o tema, redação e um aviso de plágio automático caso o sistema identifique. Você deverá corrigir a redação e, no final, dar uma pontuação de 0 a 10 e comentar o porquê foi dada a pontuação. A saída deverá ser em uma formatação JSON, por exemplo: {'pontuação':'5.5', 'comentario':'abc...'}. " + f"{plagio}\nTema: {tema},\nRedação: {essay}"
-          
-        }
-        ],              
+            {
+                "role": "system", 
+                "content": "Você é um Professor avaliador de redação universitária. Você receberá o tema, redação e um aviso de plágio automático caso o sistema identifique. Você deverá corrigir a redação e, no final, dar uma pontuação de 0 a 10 e comentar o porquê foi dada a pontuação. A saída deverá ser em uma formatação exemplo: '#pontuacao=**5.5**; #comentario=**abc**'" + f"{plagio}\nTema: {tema},\nRedação: {essay}"
+            }
+        ],        
         max_tokens=3000
     )
-    corrected_essay = response.choices[0].message.content   
+    corrected_essay = response.choices[0].message.content    
     
-    processed_essay = preprocess_text(essay)
-    store_processed_text(inscricao, essay, processed_essay, tema)
-    
-    # Extrair pontuação e comentário da redação corrigida
-    pontuacao_comentario = extract_score_and_comment(corrected_essay)
-    
-    return pontuacao_comentario, corrected_essay
+    return corrected_essay
 
 # Função para extrair a pontuação e o comentário da redação corrigida
-def extract_score_and_comment(corrected_essay):
-    # Esta função precisa ser implementada de acordo com o formato do retorno do OpenAI
-    # Exemplo simplificado:
-    try:
-        result = json.loads(corrected_essay)
-        pontuacao = result.get('pontuação', '')
-        comentario = result.get('comentario', '')
-    except json.JSONDecodeError:
-        pontuacao = ''
-        comentario = ''
-    return {"pontuacao": pontuacao, "comentario": comentario}
 
 # Configurar Flask
 app = Flask(__name__)
@@ -115,12 +111,12 @@ def process_essay_endpoint():
     if not inscricao or not tema or not redacao:
         return jsonify({'message': 'Missing required fields'}), 400
     
-    pontuacao_comentario, corrected_essay = process_essay(inscricao, tema, redacao)
-    print(pontuacao_comentario)
+    data = process_essay(inscricao, tema, redacao)  
+   
     return jsonify({
         "inscricao": inscricao,
-        "pontuacao": pontuacao_comentario["pontuacao"],
-        "comentario": pontuacao_comentario["comentario"],
+        "pontuacao": extrair_pontuacao(data),
+        "comentario": extrair_comentario(data),
         "tema": tema,
         "redacao": redacao
     })
