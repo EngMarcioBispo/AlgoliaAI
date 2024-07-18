@@ -111,8 +111,7 @@ def process_essay_endpoint():
     if not inscricao or not tema or not redacao:
         return jsonify({'message': 'Missing required fields'}), 400
     
-    data = process_essay(inscricao, tema, redacao)  
-    print(data)
+    data = process_essay(inscricao, tema, redacao)      
     return jsonify({
         "inscricao": inscricao,
         "pontuacao": extrair_pontuacao(data),
