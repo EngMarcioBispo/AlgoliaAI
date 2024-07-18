@@ -16,14 +16,14 @@ client = OpenAI(
 
 # Função para extrair a pontuação usando regex
 def extrair_pontuacao(data):
-    match = re.search(r"#pontuacao=\*\*(\d+(\.\d+)?)\*\*", data)
+    match = re.search(r"#pontuacao=(.*?);", data)
     if match:
         return match.group(1)
     return None
 
 # Função para extrair o comentário usando regex
 def extrair_comentario(data):
-    match = re.search(r"#comentario=\*\*(.+?)\*\*", data)
+    match = re.search(r"#comentario=(.*$)", data)
     if match:
         return match.group(1)
     return None
@@ -76,7 +76,7 @@ def process_essay(inscricao, tema, essay):
         messages=[
             {
                 "role": "system", 
-                "content": "Você é um Professor avaliador de redação universitária. Você receberá o tema, redação e um aviso de plágio automático caso o sistema identifique. Você deverá corrigir a redação e, no final, dar uma pontuação de 0 a 10 e comentar o porquê foi dada a pontuação. A saída/output só poderá ser da forma do exemplo a seguir: '#pontuacao=**5.5**; #comentario=**abc**'" + f"{plagio}\nTema: {tema},\nRedação: {essay}"
+                "content": "Você é um Professor avaliador de redação universitária. Você receberá o tema, redação e um aviso de plágio automático caso o sistema identifique. Você deverá corrigir a redação e, no final, dar uma pontuação de 0 a 10 e comentar o porquê foi dada a pontuação. A saída/output só poderá ser da forma do exemplo a seguir: '#pontuacao=5.5; #comentario=abc'" + f"{plagio}\nTema: {tema},\nRedação: {essay}"
             }
         ],        
         max_tokens=3000
@@ -112,7 +112,7 @@ def process_essay_endpoint():
         return jsonify({'message': 'Missing required fields'}), 400
     
     data = process_essay(inscricao, tema, redacao)  
-   
+    print(data)
     return jsonify({
         "inscricao": inscricao,
         "pontuacao": extrair_pontuacao(data),
